@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-gorp/gorp"
-	"github.com/ovh/cds/engine/cdn/index"
 	"github.com/ovh/cds/engine/gorpmapper"
 	"github.com/ovh/cds/sdk"
 	"github.com/ovh/cds/sdk/log"
@@ -41,15 +40,12 @@ func LoadUnitByID(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor
 
 // LoadUnitByName returns a unit from database for given name.
 func LoadUnitByName(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, name string) (*Unit, error) {
-	log.Debug("storage.LoadUnitByName> name=%s", name)
-
 	query := gorpmapper.NewQuery("SELECT * FROM storage_unit WHERE name = $1").Args(name)
 	return getUnit(ctx, m, db, query)
 }
 
 // InsertUnit in database.
 func InsertUnit(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, i *Unit) error {
-	log.Debug("storage.InsertUnit> %+v", i)
 	i.ID = sdk.UUID()
 	i.Created = time.Now()
 	if err := m.InsertAndSign(ctx, db, i); err != nil {
@@ -102,17 +98,14 @@ func getAllUnits(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor,
 	return units, nil
 }
 
-func InsertItemUnit(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, u Unit, i index.Item) (*ItemUnit, error) {
-	var iu = ItemUnit{
-		ID:           sdk.UUID(),
-		LastModified: i.Created,
-		ItemID:       i.ID,
-		UnitID:       u.ID,
+func InsertItemUnit(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, iu *ItemUnit) error {
+	if iu.ID == "" {
+		iu.ID = sdk.UUID()
 	}
-	if err := m.InsertAndSign(ctx, db, &iu); err != nil {
-		return nil, sdk.WrapError(err, "unable to insert storage unit iotem")
+	if err := m.InsertAndSign(ctx, db, iu); err != nil {
+		return sdk.WrapError(err, "unable to insert storage unit iotem")
 	}
-	return &iu, nil
+	return nil
 }
 
 func UpdateItemUnit(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, u *ItemUnit) error {
@@ -183,12 +176,17 @@ func getAllItemUnits(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecu
 }
 
 func LoadAllItemIDUnknownByUnit(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, unitID string, limit int) ([]string, error) {
-	query := `SELECT id 
-		FROM index 
-		EXCEPT 
-		SELECT item_id
-		FROM storage_unit_index  
-		WHERE unit_id = $1
+	query := `
+		SELECT * 
+		FROM (
+			SELECT index.id 
+			FROM index
+			JOIN storage_unit_index ON index.id = storage_unit_index.item_id
+			EXCEPT 
+			SELECT item_id
+			FROM storage_unit_index  
+			WHERE unit_id = $1
+		) IDS
 		LIMIT $2
 	`
 

@@ -3,14 +3,12 @@ package cdn
 import (
 	"context"
 	"encoding/hex"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/mitchellh/hashstructure"
-
 	"github.com/ovh/cds/engine/cdn/index"
 	"github.com/ovh/cds/engine/cdn/storage"
+	"github.com/ovh/cds/engine/gorpmapper"
 	"github.com/ovh/cds/sdk"
 	"github.com/ovh/cds/sdk/log"
 	"github.com/ovh/symmecrypt/convergent"
@@ -114,11 +112,10 @@ func (s *Service) storeLogs(ctx context.Context, typ string, signature log.Signa
 		apiRef.RequirementServiceName = signature.Service.RequirementName
 	}
 
-	hashRefU, err := hashstructure.Hash(apiRef, nil)
+	hashRef, err := index.ComputeApiRef(apiRef)
 	if err != nil {
-		return sdk.WithStack(err)
+		return err
 	}
-	hashRef := strconv.FormatUint(hashRefU, 10)
 
 	item, err := index.LoadItemByApiRefHashAndType(ctx, s.Mapper, tx, hashRef, typ)
 	if err != nil {
@@ -187,18 +184,21 @@ func (s *Service) storeLogs(ctx context.Context, typ string, signature log.Signa
 			return err
 		}
 
-		unit, err := storage.LoadUnitByName(ctx, s.Mapper, tx, s.Units.Buffer.Name())
-		if err != nil {
-			return err
-		}
-
 		if !alreadyExist {
-			if _, err := storage.InsertItemUnit(ctx, s.Mapper, tx, *unit, *item); err != nil {
+			item, err = index.LoadItemByID(ctx, s.Mapper, tx, item.ID, gorpmapper.GetOptions.WithDecryption)
+			if err != nil {
+				return err
+			}
+			var iu = storage.ItemUnit{
+				ItemID:       item.ID,
+				UnitID:       s.Units.Buffer.ID(),
+				LastModified: time.Now(),
+			}
+			if err := storage.InsertItemUnit(ctx, s.Mapper, tx, &iu); err != nil {
 				return err
 			}
 		}
 	}
 
 	return sdk.WithStack(tx.Commit())
-
 }

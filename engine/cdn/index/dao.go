@@ -11,10 +11,10 @@ import (
 	"github.com/ovh/cds/sdk/log"
 )
 
-func getItem(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, q gorpmapper.Query) (*Item, error) {
+func getItem(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, q gorpmapper.Query, opts ...gorpmapper.GetOptionFunc) (*Item, error) {
 	var i Item
 
-	found, err := m.Get(ctx, db, q, &i)
+	found, err := m.Get(ctx, db, q, &i, opts...)
 	if err != nil {
 		return nil, sdk.WrapError(err, "cannot get auth consumer")
 	}
@@ -35,15 +35,15 @@ func getItem(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, q g
 }
 
 // LoadItemByID returns an item from database for given id.
-func LoadItemByID(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, id string) (*Item, error) {
+func LoadItemByID(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, id string, opts ...gorpmapper.GetOptionFunc) (*Item, error) {
 	query := gorpmapper.NewQuery("SELECT * FROM index WHERE id = $1").Args(id)
-	return getItem(ctx, m, db, query)
+	return getItem(ctx, m, db, query, opts...)
 }
 
 // LoadAndLockItemByID returns an item from database for given id.
-func LoadAndLockItemByID(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, id string) (*Item, error) {
+func LoadAndLockItemByID(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExecutorWithTx, id string, opts ...gorpmapper.GetOptionFunc) (*Item, error) {
 	query := gorpmapper.NewQuery("SELECT * FROM index WHERE id = $1 FOR UPDATE SKIP LOCKED").Args(id)
-	return getItem(ctx, m, db, query)
+	return getItem(ctx, m, db, query, opts...)
 }
 
 // InsertItem in database.
@@ -67,7 +67,7 @@ func UpdateItem(ctx context.Context, m *gorpmapper.Mapper, db gorpmapper.SqlExec
 }
 
 // LoadItemByJobStepAndType load an item by his job id, step order and type
-func LoadItemByApiRefHashAndType(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, hash string, typ string) (*Item, error) {
+func LoadItemByApiRefHashAndType(ctx context.Context, m *gorpmapper.Mapper, db gorp.SqlExecutor, hash string, typ string, opts ...gorpmapper.GetOptionFunc) (*Item, error) {
 	query := gorpmapper.NewQuery(`
 		SELECT * 
 		FROM index 

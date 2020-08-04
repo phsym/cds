@@ -59,6 +59,11 @@ func (s *Redis) NewReader(i index.Item) (io.ReadCloser, error) {
 	return &reader{s: s, i: i}, nil
 }
 
+func (s *Redis) Read(i index.Item, r io.Reader, w io.Writer) error {
+	_, err := io.Copy(w, r)
+	return err
+}
+
 type reader struct {
 	s             *Redis
 	i             index.Item

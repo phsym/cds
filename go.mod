@@ -133,7 +133,7 @@ require (
 	github.com/ory-am/common v0.4.0 // indirect
 	github.com/ovh/cds/sdk/interpolate v0.0.0-20190319104452-71125b036b25
 	github.com/ovh/configstore v0.3.3-0.20200701085609-a539fcf61db5
-	github.com/ovh/symmecrypt v0.4.4-0.20200727114100-27d0827d75e8
+	github.com/ovh/symmecrypt v0.4.4-0.20200804070156-7ade078b9ddc
 	github.com/ovh/venom v0.25.0
 	github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -175,7 +175,6 @@ require (
 	github.com/xanzy/go-gitlab v0.15.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/yesnault/go-toml v0.0.0-20191205182532-f5ef6cee7945
-	github.com/yesnault/gorp v2.0.0+incompatible
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
 	github.com/yuin/gopher-lua v0.0.0-20170901023928-8c2befcd3908
 	github.com/ziutek/mymysql v1.5.4 // indirect

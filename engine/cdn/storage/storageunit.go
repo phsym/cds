@@ -14,6 +14,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"github.com/ovh/cds/engine/cdn/index"
+	"github.com/ovh/cds/engine/cdn/storage/encryption"
 	"github.com/ovh/cds/engine/gorpmapper"
 	"github.com/ovh/cds/sdk"
 	"github.com/ovh/cds/sdk/log"
@@ -48,9 +49,12 @@ type Interface interface {
 	DB() *gorp.DbMap
 	Init(cfg interface{}) error
 	ItemExists(i index.Item) (bool, error)
+	Lock()
+	Unlock()
 }
 
 type AbstractUnit struct {
+	sync.Mutex
 	u  Unit
 	m  *gorpmapper.Mapper
 	db *gorp.DbMap
@@ -84,12 +88,16 @@ type BufferUnit interface {
 	Append(i index.Item, value string) error
 	Get(i index.Item, from, to uint) ([]string, error)
 	NewReader(i index.Item) (io.ReadCloser, error)
+	Read(i index.Item, r io.Reader, w io.Writer) error
 }
 
 type StorageUnit interface {
 	Interface
 	NewWriter(i index.Item) (io.WriteCloser, error)
 	NewReader(i index.Item) (io.ReadCloser, error)
+	NewLocator(s string) (string, error)
+	Write(i index.Item, r io.Reader, w io.Writer) error
+	Read(i index.Item, r io.Reader, w io.Writer) error
 }
 
 type Configuration struct {
@@ -109,7 +117,8 @@ type StorageConfiguration struct {
 }
 
 type LocalStorageConfiguration struct {
-	Path string `toml:"path" json:"path"`
+	Path       string                          `toml:"path" json:"path"`
+	Encryption encryption.ConvergentEncryption `toml:"encryption" json:"encryption" mapstructure:"encryption"`
 }
 
 type RedisBufferConfiguration struct {
@@ -152,7 +161,7 @@ func Init(ctx context.Context, m *gorpmapper.Mapper, db *gorp.DbMap, config Conf
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() // nolint
 
 	u, err := LoadUnitByName(ctx, m, tx, config.Buffer.Name)
 	if sdk.ErrorIs(err, sdk.ErrNotFound) {
@@ -165,7 +174,9 @@ func Init(ctx context.Context, m *gorpmapper.Mapper, db *gorp.DbMap, config Conf
 			Name:    config.Buffer.Name,
 			Config:  srvConfig,
 		}
-		err = InsertUnit(ctx, m, tx, u)
+		if err := InsertUnit(ctx, m, tx, u); err != nil {
+			return nil, err
+		}
 	} else if err != nil {
 		return nil, err
 	}
@@ -204,8 +215,7 @@ func Init(ctx context.Context, m *gorpmapper.Mapper, db *gorp.DbMap, config Conf
 			}
 		}
 
-		schedulerEntry, err := scheduler.AddFunc(cfg.CronExpr, runFunc)
-		if err != nil {
+		if _, err := scheduler.AddFunc(cfg.CronExpr, runFunc); err != nil {
 			return nil, err
 		}
 
@@ -234,7 +244,6 @@ func Init(ctx context.Context, m *gorpmapper.Mapper, db *gorp.DbMap, config Conf
 		storageUnit.Set(m, db, *u)
 
 		result.Storages = append(result.Storages, storageUnit)
-		log.Debug("cdn.storage.Init> storage scheduled: %v", schedulerEntry)
 		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
