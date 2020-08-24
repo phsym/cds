@@ -24,6 +24,11 @@ type Configuration struct {
 	HTTP      struct {
 		Addr string `toml:"addr" default:"" commented:"true" comment:"Listen address without port, example: 127.0.0.1" json:"addr"`
 		Port int    `toml:"port" default:"8080" json:"port"`
+		TLS  struct {
+			Enabled  bool   `toml:"enabled" default:"false" commented:"Enable HTTPS" json:"enabled"`
+			CertFile string `toml:"certfile" default:"" commented:"Path to certificate" json:"-"`
+			KeyFile  string `toml:"keyfile" default:"" commented:"Path to certificate's private key" json:"-"`
+		} `toml:"tls" json:"tls"`
 	} `toml:"http" comment:"######################\n CDS UI HTTP Configuration \n######################" json:"http"`
 	URL      string                          `toml:"url" comment:"Public URL of this UI service." default:"http://localhost:8080" json:"url"`
 	API      service.APIServiceConfiguration `toml:"api" comment:"######################\n CDS API Settings \n######################" json:"api"`

@@ -67,6 +67,11 @@ type Configuration struct {
 	HTTP struct {
 		Addr string `toml:"addr" default:"" commented:"true" comment:"Listen HTTP address without port, example: 127.0.0.1" json:"addr"`
 		Port int    `toml:"port" default:"8081" json:"port"`
+		TLS  struct {
+			Enabled  bool   `toml:"enabled" default:"false" commented:"Enable HTTPS" json:"enabled"`
+			CertFile string `toml:"certfile" default:"" commented:"Path to certificate" json:"-"`
+			KeyFile  string `toml:"keyfile" default:"" commented:"Path to certificate's private key" json:"-"`
+		} `toml:"tls" json:"tls"`
 	} `toml:"http" json:"http"`
 	Secrets struct {
 		Key string `toml:"key" json:"-"`
@@ -831,9 +836,16 @@ func (a *API) Serve(ctx context.Context) error {
 		log.Error(ctx, "api> heap dump uploaded to %s", s)
 	}()
 
-	log.Info(ctx, "Starting CDS API HTTP Server on %s:%d", a.Config.HTTP.Addr, a.Config.HTTP.Port)
-	if err := s.ListenAndServe(); err != nil {
-		return fmt.Errorf("Cannot start HTTP server: %v", err)
+	if a.Config.HTTP.TLS.Enabled {
+		log.Info(ctx, "Starting CDS API HTTPS Server on %s:%d", a.Config.HTTP.Addr, a.Config.HTTP.Port)
+		if err := s.ListenAndServeTLS(a.Config.HTTP.TLS.CertFile, a.Config.HTTP.TLS.KeyFile); err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("Cannot start HTTP server: %v", err)
+		}
+	} else {
+		log.Info(ctx, "Starting CDS API HTTP Server on %s:%d", a.Config.HTTP.Addr, a.Config.HTTP.Port)
+		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("Cannot start HTTP server: %v", err)
+		}
 	}
 
 	return nil

@@ -129,9 +129,16 @@ func (s *Service) Serve(ctx context.Context) error {
 	}
 
 	// Start the http server
-	log.Info(ctx, "ui> Starting HTTP Server on port %d", s.Cfg.HTTP.Port)
-	if err := server.ListenAndServe(); err != nil {
-		log.Error(ctx, "ui> Listen and serve failed: %s", err)
+	if s.Cfg.HTTP.TLS.Enabled {
+		log.Info(ctx, "ui> Starting HTTPS Server on port %d", s.Cfg.HTTP.Port)
+		if err := server.ListenAndServeTLS(s.Cfg.HTTP.TLS.CertFile, s.Cfg.HTTP.TLS.KeyFile); err != nil && err != http.ErrServerClosed {
+			log.Error(ctx, "ui> Listen and serve failed: %s", err)
+		}
+	} else {
+		log.Info(ctx, "ui> Starting HTTP Server on port %d", s.Cfg.HTTP.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error(ctx, "ui> Listen and serve failed: %s", err)
+		}
 	}
 
 	// Gracefully shutdown the http server
